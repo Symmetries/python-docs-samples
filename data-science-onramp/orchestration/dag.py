@@ -4,48 +4,56 @@ import airflow
 from airflow.operators import bash_operator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
+"""
+SESSION = 4
+with open('version.txt', mode='r') as f:
+    session, version = int(f.readline()), int(f.readline())
+
+VERSION = version + 1 if session == SESSION else 0
+
+with open('version.txt', mode='w') as f:
+    f.write(SESSION)
+    f.write(VERSION)
+"""
+
+SESSION, VERSION = 4, 3
+
 PROJECT_ID = 'data-science-onramp'
 CLUSTER_NAME = 'data-cleaning'
 REGION = 'us-east4'
-PYSPARK_JOB = {
-        'reference': {'project_id': PROJECT_ID},
-        'placement': {'cluster_name': CLUSTER_NAME},
-        'pyspark_job': {'main_python_file_uri': 'gs://citibikevd/diego-tushar-experience/setup.py'}
-}
 
-start_date = datetime.datetime.now() - datetime.timedelta(minutes=1)
+start = datetime.datetime.now() - datetime.timedelta(minutes=10)
 
 default_args = {
     'depends_on_past': False,
     'email': [''],
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': datetime.timedelta(minutes=5),
-    'start_date': start_date,
+    'retries': 0,
+    'retry_delay': datetime.timedelta(seconds=30),
+    'start_date': start,
 }
 
 with airflow.DAG(
-        'diego-tushar-dummy-dag',
+        f'diego-tushar-v{SESSION}-{VERSION}',
         'catchup=False',
         default_args=default_args,
-        schedule_interval=datetime.timedelta(minutes=1)) as dag:
+        schedule_interval=datetime.timedelta(minutes=10)) as dag:
 
-    # Submit a job to the cluster
     setup_job = DataProcPySparkOperator(
         main='gs://citibikevd/diego-tushar-experience/setup.py',
         cluster_name='data-cleaning',
-        arguments=['citibikevd'],
+        arguments=['citibikevd', '--test'],
         region=REGION,
-        task_id='setup_task_4.0'
+        task_id=f'setup-task-v{SESSION}-{VERSION}'
     )
 
     clean_job = DataProcPySparkOperator(
         main='gs://citibikevd/diego-tushar-experience/clean.py',
-        cluster_name='data-cleaning_second_sequel',
-        arguments=['citibikevd', 'data-science-onramp'],
+        cluster_name='data-cleaning',
+        arguments=['data-science-onramp', 'citibikevd', '--dry-run'],
         region=REGION,
-        task_id='clean_task_4.0'
+        task_id=f'clean-task-v{SESSION}-{VERSION}'
     )
 
     setup_job >> clean_job

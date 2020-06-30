@@ -6,8 +6,8 @@ from py4j.protocol import Py4JJavaError
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructField, StructType, StringType, IntegerType
 
-BUCKET_NAME = sys.argv[1]
-PROJECT_ID = sys.argv[2]
+BUCKET_NAME = sys.argv[2]
+PROJECT_ID = sys.argv[1]
 TABLE = f'{PROJECT_ID}.airflow_test.test_data'
 
 spark = SparkSession.builder.appName('airflow-induced job').getOrCreate()
