@@ -1,1 +1,1 @@
-print("Hello from Dataproc")
+print('ran setup.py')
