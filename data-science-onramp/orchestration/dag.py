@@ -16,7 +16,7 @@ with open('version.txt', mode='w') as f:
     f.write(VERSION)
 """
 
-SESSION, VERSION = 4, 3
+SESSION, VERSION = 4, 4
 
 PROJECT_ID = 'data-science-onramp'
 CLUSTER_NAME = 'data-cleaning'
@@ -45,14 +45,16 @@ with airflow.DAG(
         cluster_name='data-cleaning',
         arguments=['citibikevd', '--test'],
         region=REGION,
+        dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
         task_id=f'setup-task-v{SESSION}-{VERSION}'
     )
 
     clean_job = DataProcPySparkOperator(
         main='gs://citibikevd/diego-tushar-experience/clean.py',
         cluster_name='data-cleaning',
-        arguments=['data-science-onramp', 'citibikevd', '--dry-run'],
+        arguments=['data-science-onramp', 'citibikevd', '--test'],
         region=REGION,
+        dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
         task_id=f'clean-task-v{SESSION}-{VERSION}'
     )
 
