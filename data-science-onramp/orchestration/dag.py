@@ -16,7 +16,6 @@ PYSPARK_JOB = {
 start_date = datetime.datetime.now() - datetime.timedelta(minutes=1)
 
 default_args = {
-    'owner': 'Composer Example',
     'depends_on_past': False,
     'email': [''],
     'email_on_failure': False,
@@ -38,7 +37,7 @@ with airflow.DAG(
         cluster_name='data-cleaning',
         arguments=['citibikevd'],
         region=REGION,
-        task_id='setup_task_third_sequel',
+        task_id='setup_task_4.0'
     )
 
     clean_job = DataProcPySparkOperator(
@@ -46,7 +45,7 @@ with airflow.DAG(
         cluster_name='data-cleaning_second_sequel',
         arguments=['citibikevd', 'data-science-onramp'],
         region=REGION,
-        task_id='clean_task',
+        task_id='clean_task_4.0'
     )
 
     setup_job >> clean_job
