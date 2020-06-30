@@ -27,17 +27,26 @@ default_args = {
 }
 
 with airflow.DAG(
-        'diego-tushar-trial2',
+        'diego-tushar-dummy-dag',
         'catchup=False',
         default_args=default_args,
         schedule_interval=datetime.timedelta(minutes=1)) as dag:
 
     # Submit a job to the cluster
-    pyspark_task = DataProcPySparkOperator(
+    setup_job = DataProcPySparkOperator(
         main='gs://citibikevd/diego-tushar-experience/setup.py',
         cluster_name='data-cleaning',
+        arguments=['citibikevd'],
         region=REGION,
-        task_id='setup_task5',
-
-        project_id=PROJECT_ID
+        task_id='setup_task_third_sequel',
     )
+
+    clean_job = DataProcPySparkOperator(
+        main='gs://citibikevd/diego-tushar-experience/clean.py',
+        cluster_name='data-cleaning_second_sequel',
+        arguments=['citibikevd', 'data-science-onramp'],
+        region=REGION,
+        task_id='clean_task',
+    )
+
+    setup_job >> clean_job
