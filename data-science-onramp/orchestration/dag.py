@@ -1,16 +1,16 @@
 import datetime
 
 import airflow
+from airflow.models import Variable
 from airflow.operators import bash_operator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
-SESSION, VERSION = 5, 0
+SESSION, VERSION = 6, 0
 
-PROJECT_ID = 'data-science-onramp'
-CLUSTER_NAME = 'data-cleaning'
-BUCKET_NAME = 'citibikevd'
-PATH = 'diego-tushar-experience'
-REGION = 'us-east4'
+PROJECT_ID = Variable.get('gcp_project')
+BUCKET_NAME = Variable.get('gcs_bucket')
+CLUSTER_NAME = Variable.get('dataproc_cluster')
+REGION = Variable.get('gce_zone')
 
 start = datetime.datetime.now() - datetime.timedelta(minutes=10)
 
@@ -21,7 +21,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 0,
     'retry_delay': datetime.timedelta(seconds=30),
-    'start_date': start,
+    'start_date': start
 }
 
 with airflow.DAG(
@@ -31,7 +31,7 @@ with airflow.DAG(
         schedule_interval=datetime.timedelta(minutes=10)) as dag:
 
     setup_job = DataProcPySparkOperator(
-        main=f'gs://{BUCKET_NAME}/{PATH}/setup.py',
+        main=f'gs://{BUCKET_NAME}/setup.py',
         cluster_name=CLUSTER_NAME,
         arguments=[BUCKET_NAME, '--test'],
         region=REGION,
@@ -40,7 +40,7 @@ with airflow.DAG(
     )
 
     clean_job = DataProcPySparkOperator(
-        main=f'gs://{BUCKET_NAME}/{PATH}/clean.py',
+        main=f'gs://{BUCKET_NAME}/clean.py',
         cluster_name=CLUSTER_NAME,
         arguments=[PROJECT_ID, BUCKET_NAME, '--test'],
         region=REGION,
