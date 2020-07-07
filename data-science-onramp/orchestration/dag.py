@@ -33,7 +33,7 @@ with airflow.DAG(
     setup_job = DataProcPySparkOperator(
         main=f'gs://{BUCKET_NAME}/setup.py',
         cluster_name=CLUSTER_NAME,
-        arguments=[BUCKET_NAME, '--test'],
+        arguments=[BUCKET_NAME, '--dry-run'],
         region=REGION,
         dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
         task_id=f'setup-task-v{SESSION}-{VERSION}'
@@ -42,7 +42,7 @@ with airflow.DAG(
     clean_job = DataProcPySparkOperator(
         main=f'gs://{BUCKET_NAME}/clean.py',
         cluster_name=CLUSTER_NAME,
-        arguments=[PROJECT_ID, BUCKET_NAME, '--test'],
+        arguments=[PROJECT_ID, BUCKET_NAME, '--dry-run'],
         region=REGION,
         dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
         task_id=f'clean-task-v{SESSION}-{VERSION}'
