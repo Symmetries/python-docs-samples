@@ -4,22 +4,12 @@ import airflow
 from airflow.operators import bash_operator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
-"""
-SESSION = 4
-with open('version.txt', mode='r') as f:
-    session, version = int(f.readline()), int(f.readline())
-
-VERSION = version + 1 if session == SESSION else 0
-
-with open('version.txt', mode='w') as f:
-    f.write(SESSION)
-    f.write(VERSION)
-"""
-
-SESSION, VERSION = 4, 4
+SESSION, VERSION = 5, 0
 
 PROJECT_ID = 'data-science-onramp'
 CLUSTER_NAME = 'data-cleaning'
+BUCKET_NAME = 'citibikevd'
+PATH = 'diego-tushar-experience'
 REGION = 'us-east4'
 
 start = datetime.datetime.now() - datetime.timedelta(minutes=10)
@@ -41,18 +31,18 @@ with airflow.DAG(
         schedule_interval=datetime.timedelta(minutes=10)) as dag:
 
     setup_job = DataProcPySparkOperator(
-        main='gs://citibikevd/diego-tushar-experience/setup.py',
-        cluster_name='data-cleaning',
-        arguments=['citibikevd', '--test'],
+        main=f'gs://{BUCKET_NAME}/{PATH}/setup.py',
+        cluster_name=CLUSTER_NAME,
+        arguments=[BUCKET_NAME, '--test'],
         region=REGION,
         dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
         task_id=f'setup-task-v{SESSION}-{VERSION}'
     )
 
     clean_job = DataProcPySparkOperator(
-        main='gs://citibikevd/diego-tushar-experience/clean.py',
-        cluster_name='data-cleaning',
-        arguments=['data-science-onramp', 'citibikevd', '--test'],
+        main=f'gs://{BUCKET_NAME}/{PATH}/clean.py',
+        cluster_name=CLUSTER_NAME,
+        arguments=[PROJECT_ID, BUCKET_NAME, '--test'],
         region=REGION,
         dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
         task_id=f'clean-task-v{SESSION}-{VERSION}'
