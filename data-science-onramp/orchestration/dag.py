@@ -5,7 +5,7 @@ from airflow.models import Variable
 from airflow.operators import bash_operator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
-SESSION, VERSION = 6, 0
+SESSION, VERSION = 7, 3
 
 PROJECT_ID = Variable.get('gcp_project')
 BUCKET_NAME = Variable.get('gcs_bucket')
