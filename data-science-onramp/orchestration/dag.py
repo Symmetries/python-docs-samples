@@ -1,16 +1,15 @@
 import datetime
 
-import airflow
-from airflow.models import Variable
+from airflow import models
 from airflow.operators import bash_operator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
-SESSION, VERSION = 7, 3
+SESSION, VERSION = 8, 0
 
-PROJECT_ID = Variable.get('gcp_project')
-BUCKET_NAME = Variable.get('gcs_bucket')
-CLUSTER_NAME = Variable.get('dataproc_cluster')
-REGION = Variable.get('gce_zone')
+PROJECT_ID = models.Variable.get('gcp_project')
+BUCKET_NAME = models.Variable.get('gcs_bucket')
+CLUSTER_NAME = models.Variable.get('dataproc_cluster')
+REGION = models.Variable.get('gce_zone')
 
 start = datetime.datetime.now() - datetime.timedelta(minutes=10)
 
@@ -24,7 +23,7 @@ default_args = {
     'start_date': start
 }
 
-with airflow.DAG(
+with models.DAG(
         f'diego-tushar-v{SESSION}-{VERSION}',
         'catchup=False',
         default_args=default_args,

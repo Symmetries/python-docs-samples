@@ -1,7 +1,5 @@
 from airflow import models
 
-import dag as module
-
 def test_dag_import():
     models.Variable.set('gcs_bucket', 'citibikevd')
     models.Variable.set('gcp_project', 'data-science-onramp')
@@ -10,10 +8,12 @@ def test_dag_import():
 
     no_dag_found = True
 
+    from . import dag as module
 
     for dag in vars(module).values():
-        if isinstance(module, models.DAG):
+        if isinstance(dag, models.DAG):
             no_dag_found = False
             dag.test_cycle()
 
     assert not no_dag_found
+    
