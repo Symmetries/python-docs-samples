@@ -1,15 +1,12 @@
 """
-This DAG orchestrates all the components we have done so far, that is
-* Data Ingestion
-* Data Cleaning
-* Feature Engineering
-* Model Training
-The DAG relies on four Airflow variables
-(https://airflow.apache.org/concepts.html#variables)
-* gcp_project - The Google Cloud Project for the Dataproc cluster
-* gce_zone - The Dataproc cluster's region
-* dataproc_cluster - The name of the dataproc_cluster
-* gcs_bucket - The Google Cloud Storage bucket used throughout the pipeline
+A DAG that orchestrates the entire end-to-end data science pipeline.
+
+This DAG relies on four Airflow variables
+https://airflow.apache.org/concepts.html#variables
+* gcp_project - The Google Cloud Project that contains the pipeline components
+* gce_zone - Google Compute Engine region of the Dataproc cluster
+* dataproc_cluster - The name of the Dataproc Cluster
+* gcs_bucket - The Google Cloud Storage bucket used to store intermediate results of the pipeline
 """
 
 import datetime
@@ -35,7 +32,7 @@ default_args = {
     'email': [''],
     'email_on_failure': False,
     'email_on_retry': False,
-    # If a task fails, retry once after five minutes
+    # If a task fails, retry it once after waiting at least five minutes
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=5),
     # Setting the start day to yesterday starts the DAG immediately when it is submitted
@@ -52,30 +49,14 @@ with models.DAG(
 
     # Submit the setup job with the given arguments and other configuration
     # Note: This job is here for testing purposes, it will be removed later
-    # The setup job is run once at the start and it the starting point of the pipeline
-    # setup_job = DataProcPySparkOperator(
-    #     main=f'gs://{BUCKET_NAME}/setup.py',
-    #     cluster_name=CLUSTER_NAME,
-    #     arguments=[BUCKET_NAME, '--dry-run'],
-    #     region=REGION,
-    #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
-    #     task_id=f'setup-task-v{SESSION}-{VERSION}'
-    # )
-
-    # # Submit the clean job with the given arguments and other configuration
-    # clean_job = DataProcPySparkOperator(
-    #     main=f'gs://{BUCKET_NAME}/clean.py',
-    #     cluster_name=CLUSTER_NAME,
-    #     arguments=[PROJECT_ID, BUCKET_NAME, '--dry-run'],
-    #     region=REGION,
-    #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
-    #     task_id=f'clean-task-v{SESSION}-{VERSION}'
-    # )
-
-    # feature_eng_job = PythonOperator(
-    #         task_id='feature_engineering',
-    #         python_callable='gs://citibikevd/feature_engineering.py')
-
+    setup_job = DataProcPySparkOperator(
+        main=f'gs://{BUCKET_NAME}/setup.py',
+        cluster_name=CLUSTER_NAME,
+        arguments=[BUCKET_NAME, '--dry-run'],
+        region=REGION,
+        dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
+        task_id=f'setup-task-v{SESSION}-{VERSION}'
+    )
 
     feature_eng_job = PapermillOperator(
             task_id='feature_engineering',
@@ -83,6 +64,5 @@ with models.DAG(
             output_nb='/dev/null',
             parameters="")
 
-    # Declare a dependency between the setup job and the clean job
-    # That is, the clean job can only run after the setup job is complete
-    # setup_job >> clean_job
+    # Define DAG dependencies
+    setup_job >> clean_job
