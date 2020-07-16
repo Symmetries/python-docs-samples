@@ -12,12 +12,15 @@ https://airflow.apache.org/concepts.html#variables
 import datetime
 
 from airflow import models
+from airflow.operators.python_operator import PythonOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.papermill_operator import PapermillOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
+def run_notebook():
+    from dependencies import feature_engineering
 
-SESSION, VERSION = 11, 2
+SESSION, VERSION = 12, 13
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -58,11 +61,17 @@ with models.DAG(
         task_id=f'setup-task-v{SESSION}-{VERSION}'
     )
 
-    feature_eng_job = PapermillOperator(
-            task_id='feature_engineering',
-            input_nb='gs://feature_engineering.ipynb',
-            output_nb='/dev/null',
-            parameters="")
+    #feature_eng_job = PapermillOperator(
+    #        task_id='feature_engineering',
+    #        input_nb='gs://feature_engineering.ipynb',
+    #        output_nb='/dev/null',
+    #        parameters='feature-engineering-task-v{SESSION}-{VERSION}'
+    #)
+
+    feature_eng_job = PythonOperator(
+        python_callable=run_notebook,
+        task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
+    )
 
     # Define DAG dependencies
     setup_job >> clean_job

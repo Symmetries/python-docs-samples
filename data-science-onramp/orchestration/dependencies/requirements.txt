@@ -1,1 +1,1 @@
-papermill[gcs]
+papermill
