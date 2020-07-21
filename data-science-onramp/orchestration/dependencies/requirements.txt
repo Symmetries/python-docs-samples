@@ -1,1 +1,2 @@
 papermill
+google.cloud.storage==1.29.0

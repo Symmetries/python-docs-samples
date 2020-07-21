@@ -18,9 +18,9 @@ from airflow.operators.papermill_operator import PapermillOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
 def run_notebook():
-    from dependencies import feature_engineering
+    from dependencies import dummy#feature_engineering
 
-SESSION, VERSION = 12, 13
+SESSION, VERSION = 13, 5
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
