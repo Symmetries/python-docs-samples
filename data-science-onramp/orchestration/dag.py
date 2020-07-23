@@ -16,17 +16,28 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.papermill_operator import PapermillOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
+from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator
 
 def run_notebook():
     from dependencies import dummy#feature_engineering
 
-SESSION, VERSION = 13, 5
+SESSION, VERSION = 14, 3
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
 BUCKET_NAME = models.Variable.get('gcs_bucket')
 CLUSTER_NAME = models.Variable.get('dataproc_cluster')
-REGION = models.Variable.get('gce_zone')
+REGION = models.Variable.get('gce_region')
+ZONE = models.Variable.get('gce_zone')
+GKE_CLUSTER = {
+    'name': 'tiego',
+    'project_id': PROJECT_ID,
+    'location': ZONE,
+    'initial_node_count': 3,
+    'node_config': {
+        'machine_type': 'n1-standard-16'
+    }
+}
 
 yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
@@ -68,10 +79,17 @@ with models.DAG(
     #        parameters='feature-engineering-task-v{SESSION}-{VERSION}'
     #)
 
-    feature_eng_job = PythonOperator(
-        python_callable=run_notebook,
-        task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
+    #feature_eng_job = PythonOperator(
+    #    python_callable=run_notebook,
+    #    task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
+    #)
+
+    create_gke_job = GKEClusterCreateOperator(
+        task_id='gke_cluster_create',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        body=GKE_CLUSTER
     )
 
-    # Define DAG dependencies
-    setup_job >> clean_job
+    # Declare a dependency between the setup job and the clean job
+    # setup_job >> clean_job
