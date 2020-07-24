@@ -17,11 +17,14 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.papermill_operator import PapermillOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator
+from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
+
+import pandas as pd
 
 def run_notebook():
-    from dependencies import dummy#feature_engineering
+    from dependencies import dummy # feature_engineering
 
-SESSION, VERSION = 14, 3
+SESSION, VERSION = 15, 11
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -31,13 +34,21 @@ REGION = models.Variable.get('gce_region')
 ZONE = models.Variable.get('gce_zone')
 GKE_CLUSTER = {
     'name': 'tiego',
-    'project_id': PROJECT_ID,
+    'projectId': PROJECT_ID,
     'location': ZONE,
-    'initial_node_count': 3,
-    'node_config': {
-        'machine_type': 'n1-standard-16'
+    'initialNodeCount': 3,
+    'nodeConfig': {
+        'machineType': 'n1-standard-16'
     }
 }
+
+node_config = NodeConfig(machine_type='n1-standard-16')
+node_pool = NodePool(initial_node_count=1,
+                     config=node_config)
+GKE_CLUSTER = Cluster(name='tiego',
+                      node_pools=[node_pool])
+
+
 
 yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
