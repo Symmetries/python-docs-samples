@@ -20,35 +20,24 @@ from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOpe
 from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 
 import pandas as pd
+import uuid
 
 def run_notebook():
     from dependencies import dummy # feature_engineering
 
-SESSION, VERSION = 15, 11
+SESSION, VERSION = 16, 2
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
 BUCKET_NAME = models.Variable.get('gcs_bucket')
-CLUSTER_NAME = models.Variable.get('dataproc_cluster')
 REGION = models.Variable.get('gce_region')
 ZONE = models.Variable.get('gce_zone')
-GKE_CLUSTER = {
-    'name': 'tiego',
-    'projectId': PROJECT_ID,
-    'location': ZONE,
-    'initialNodeCount': 3,
-    'nodeConfig': {
-        'machineType': 'n1-standard-16'
-    }
-}
+DATAPROC_CLUSTER_NAME = models.Variable.get('dataproc_cluster')
+GKE_CLUSTER_NAME = f'{uuid.uuid4()}'
 
 node_config = NodeConfig(machine_type='n1-standard-16')
-node_pool = NodePool(initial_node_count=1,
-                     config=node_config)
-GKE_CLUSTER = Cluster(name='tiego',
-                      node_pools=[node_pool])
-
-
+node_pool = NodePool(initial_node_count=1, config=node_config)
+GKE_CLUSTER = Cluster(name='tiego', initial_node_count=1, node_config=node_config)
 
 yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
@@ -74,14 +63,29 @@ with models.DAG(
 
     # Submit the setup job with the given arguments and other configuration
     # Note: This job is here for testing purposes, it will be removed later
-    setup_job = DataProcPySparkOperator(
-        main=f'gs://{BUCKET_NAME}/setup.py',
-        cluster_name=CLUSTER_NAME,
-        arguments=[BUCKET_NAME, '--dry-run'],
-        region=REGION,
-        dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
-        task_id=f'setup-task-v{SESSION}-{VERSION}'
-    )
+    # The setup job is run once at the start and it the starting point of the pipeline
+    # setup_job = DataProcPySparkOperator(
+    #     main=f'gs://{BUCKET_NAME}/setup.py',
+    #     cluster_name=DATAPROC_CLUSTER_NAME,
+    #     arguments=[BUCKET_NAME, '--dry-run'],
+    #     region=REGION,
+    #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
+    #     task_id=f'setup-task-v{SESSION}-{VERSION}'
+    # )
+
+    # # Submit the clean job with the given arguments and other configuration
+    # clean_job = DataProcPySparkOperator(
+    #     main=f'gs://{BUCKET_NAME}/clean.py',
+    #     cluster_name=DATAPROC_CLUSTER_NAME,
+    #     arguments=[PROJECT_ID, BUCKET_NAME, '--dry-run'],
+    #     region=REGION,
+    #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
+    #     task_id=f'clean-task-v{SESSION}-{VERSION}'
+    # )
+
+    # feature_eng_job = PythonOperator(
+    #         task_id='feature_engineering',
+    #         python_callable='gs://citibikevd/feature_engineering.py')
 
     #feature_eng_job = PapermillOperator(
     #        task_id='feature_engineering',
@@ -102,5 +106,15 @@ with models.DAG(
         body=GKE_CLUSTER
     )
 
-    # Declare a dependency between the setup job and the clean job
+
+
+    delete_gke_job = GKEClusterDeleteOperator(
+        task_id='gke_cluster_delete',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        name=GKE_CLUSTER_NAME
+    )
+
+    # Declare task dependencies
     # setup_job >> clean_job
+    create_gke_job >> delete_gke_job
