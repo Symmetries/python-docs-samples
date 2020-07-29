@@ -27,6 +27,7 @@ DEFAULT_BATCH_SIZE = 128
 DEFAULT_LEARNING_RATE = .01
 DEFAULT_VERBOSITY = 'INFO'
 
+
 def get_args():
     """Argument parser.
 

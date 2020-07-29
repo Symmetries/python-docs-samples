@@ -41,6 +41,7 @@ def load_data():
 
     return train_x, train_y, eval_x, eval_y
 
+
 def copy_file_to_GCS(filename, destination):
     '''Copies filename from working directory into GCS bucket'''
     if not destination.endswith('/'):
