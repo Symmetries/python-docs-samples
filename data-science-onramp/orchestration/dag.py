@@ -22,10 +22,7 @@ from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 import pandas as pd
 import uuid
 
-def run_notebook():
-    from dependencies import dummy # feature_engineering
-
-SESSION, VERSION = 16, 2
+SESSION, VERSION = 18, 0
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
