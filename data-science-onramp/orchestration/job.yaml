@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: helloworld-gke
+spec:
+  selector:
+    matchLabels:
+      app: hello
+  template:
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+      - name: hello-app
+        # Replace $GCLOUD_PROJECT with your project ID
+        image: gcr.io/data-science-onramp/tiego:latest
+        # This app listens on port 8080 for web traffic by default.
+        ports:
+        - containerPort: 8080
+        env:
+          - name: PORT
+            value: "8080"
+      restartPolicy: Never
+    backoffLimit: 4
