@@ -1,15 +1,12 @@
-apiVersion: extensions/v1beta1
+apiVersion: batch/v1
 kind: Job
 metadata:
-  name: helloworld-gke
+  name: example-job
 spec:
-  selector:
-    matchLabels:
-      app: hello
   template:
     metadata:
       labels:
-        app: hello
+        app: example-job
     spec:
       containers:
       - name: hello-app
@@ -22,4 +19,4 @@ spec:
           - name: PORT
             value: "8080"
       restartPolicy: Never
-    backoffLimit: 4
+  backoffLimit: 4
