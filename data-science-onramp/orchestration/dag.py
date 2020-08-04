@@ -17,12 +17,13 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.papermill_operator import PapermillOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator
+from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator, MLEngineVersionOperator
 from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 
 import pandas as pd
 import uuid
 
-SESSION, VERSION = 18, 0
+SESSION, VERSION = 21, 2
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -96,22 +97,41 @@ with models.DAG(
     #    task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
     #)
 
-    create_gke_job = GKEClusterCreateOperator(
-        task_id='gke_cluster_create',
-        project_id=PROJECT_ID,
-        location=ZONE,
-        body=GKE_CLUSTER
+    # create_gke_job = GKEClusterCreateOperator(
+    #     task_id='gke_cluster_create',
+    #     project_id=PROJECT_ID,
+    #     location=ZONE,
+    #     body=GKE_CLUSTER
+    # )
+
+
+    train_tfkeras_operator = MLEngineTrainingOperator(
+            project_id=PROJECT_ID,
+            task_id='tfkeras_train_job',
+            job_id='tfkeras_train_job',
+            package_uris=[],
+            training_python_module='trainer.tfkeras.task',
+            region=ZONE,
+            job_dir='gs://citibikevd/diego/composertest/',
+            training_args=[],
+            python_version='2.7',
+            runtime_version = '2.1'
     )
 
 
 
-    delete_gke_job = GKEClusterDeleteOperator(
-        task_id='gke_cluster_delete',
-        project_id=PROJECT_ID,
-        location=ZONE,
-        name=GKE_CLUSTER_NAME
-    )
+
+
+    # delete_gke_job = GKEClusterDeleteOperator(
+    #     task_id='gke_cluster_delete',
+    #     project_id=PROJECT_ID,
+    #     location=ZONE,
+    #     name=GKE_CLUSTER_NAME
+    # )
 
     # Declare task dependencies
     # setup_job >> clean_job
-    create_gke_job >> delete_gke_job
+
+    #create_gke_job >> delete_gke_job
+
+    # AI Platform Operators
