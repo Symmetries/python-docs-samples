@@ -23,7 +23,7 @@ from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 import pandas as pd
 import uuid
 
-SESSION, VERSION = 21, 2
+SESSION, VERSION = 22, 7
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -45,7 +45,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     # If a task fails, retry it once after waiting at least five minutes
-    'retries': 1,
+    'retries': 0,
     'retry_delay': datetime.timedelta(minutes=5),
     # Setting the start day to yesterday starts the DAG immediately when it is submitted
     'start_date': yesterday
@@ -105,17 +105,17 @@ with models.DAG(
     # )
 
 
-    train_tfkeras_operator = MLEngineTrainingOperator(
-            project_id=PROJECT_ID,
-            task_id='tfkeras_train_job',
-            job_id='tfkeras_train_job',
-            package_uris=[],
-            training_python_module='trainer.tfkeras.task',
-            region=ZONE,
-            job_dir='gs://citibikevd/diego/composertest/',
-            training_args=[],
-            python_version='2.7',
-            runtime_version = '2.1'
+    train_tfkeras_job = MLEngineTrainingOperator(
+        task_id='tfkeras_train_job',
+        project_id=PROJECT_ID,
+        job_id=f'tfkeras_train_job_{uuid.uuid4()}',
+        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+        training_python_module='trainer.tfkeras_model.task',
+        training_args=[],
+        region=REGION,
+        job_dir='gs://citibikevd/aiplatform/output',
+        runtime_version = '2.1',
+        python_version='3.7'
     )
 
 
