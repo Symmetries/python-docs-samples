@@ -2,3 +2,4 @@ google-cloud-storage
 google-cloud-bigquery
 scikit-learn
 pandas
+apache-airflow-backport-providers-google==2020.6.24

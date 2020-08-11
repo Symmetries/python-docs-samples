@@ -12,18 +12,21 @@ https://airflow.apache.org/concepts.html#variables
 import datetime
 
 from airflow import models
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.papermill_operator import PapermillOperator
-from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
-from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator
-from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator, MLEngineVersionOperator
-from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
+#from airflow.operators.python_operator import PythonOperator
+#from airflow.operators.bash_operator import BashOperator
+#from airflow.operators.papermill_operator import PapermillOperator
+#from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
+#from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator
+#from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator, MLEngineVersionOperator
+# from airflow.providers.google.cloud.hooks.dataproc import DataprocSubmitJobOperator
+# from airflow.providers.google.cloud.hooks.kubernetes import GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator
+from airflow.providers.google.cloud.hooks.mlengine import MLEngineCreateModelOperator #MLEngineStartTrainingJobOperator, MLEngineCreateModelOperator, MLEngineCreateVersionOperator #, MLEngineSetDefaultVersionOperator
 
-import pandas as pd
+#from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
+#import pandas as pd
 import uuid
 
-SESSION, VERSION = 22, 7
+SESSION, VERSION = 23, 5
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -33,9 +36,9 @@ ZONE = models.Variable.get('gce_zone')
 DATAPROC_CLUSTER_NAME = models.Variable.get('dataproc_cluster')
 GKE_CLUSTER_NAME = f'{uuid.uuid4()}'
 
-node_config = NodeConfig(machine_type='n1-standard-16')
-node_pool = NodePool(initial_node_count=1, config=node_config)
-GKE_CLUSTER = Cluster(name='tiego', initial_node_count=1, node_config=node_config)
+# node_config = NodeConfig(machine_type='n1-standard-16')
+# node_pool = NodePool(initial_node_count=1, config=node_config)
+# GKE_CLUSTER = Cluster(name='tiego', initial_node_count=1, node_config=node_config)
 
 yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
@@ -104,22 +107,40 @@ with models.DAG(
     #     body=GKE_CLUSTER
     # )
 
+    # train_sklearn_job = MLEngineTrainingOperator(
+    #     task_id='sklearn_train_job',
+    #     project_id=PROJECT_ID,
+    #     job_id=f'sklearn_train_job_{uuid.uuid4()}',
+    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+    #     training_python_module='trainer.sklearn_model.task',
+    #     training_args=[],
+    #     region=REGION,
+    #     job_dir='gs://citibikevd/aiplatform/output',
+    #     runtime_version = '2.1',
+    #     python_version='3.7'
+    # )
 
-    train_tfkeras_job = MLEngineTrainingOperator(
-        task_id='tfkeras_train_job',
+    # train_tfkeras_job = MLEngineTrainingOperator(
+    #     task_id='tfkeras_train_job',
+    #     project_id=PROJECT_ID,
+    #     job_id=f'tfkeras_train_job_{uuid.uuid4()}',
+    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+    #     training_python_module='trainer.tfkeras_model.task',
+    #     training_args=[],
+    #     region=REGION,
+    #     job_dir='gs://citibikevd/aiplatform/output',
+    #     runtime_version = '2.1',
+    #     python_version='3.7'
+    # )
+
+
+    add_model_create = MLEngineCreateModelOperator(
+        task_id="create-model",
         project_id=PROJECT_ID,
-        job_id=f'tfkeras_train_job_{uuid.uuid4()}',
-        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
-        training_python_module='trainer.tfkeras_model.task',
-        training_args=[],
-        region=REGION,
-        job_dir='gs://citibikevd/aiplatform/output',
-        runtime_version = '2.1',
-        python_version='3.7'
+        model={
+            name: f"tf_keras_model_{uuid.uuid4()}"
+        }
     )
-
-
-
 
 
     # delete_gke_job = GKEClusterDeleteOperator(
