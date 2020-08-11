@@ -19,14 +19,15 @@ from airflow import models
 #from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator
 #from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator, MLEngineVersionOperator
 # from airflow.providers.google.cloud.hooks.dataproc import DataprocSubmitJobOperator
-# from airflow.providers.google.cloud.hooks.kubernetes import GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator
+#from airflow.providers.google.cloud.operators.kubernetes_engine import GKECreateClusterOperator, GKEDeleteClusterOperator#, GKEStartPodOperator
+from airflow.providers.google.cloud.operators.kubernetes_engine import GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator 
 from airflow.providers.google.cloud.operators.mlengine import MLEngineCreateModelOperator, MLEngineCreateVersionOperator
 
-#from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
+from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 #import pandas as pd
 import uuid
 
-SESSION, VERSION = 24, 6
+SESSION, VERSION = 25, 5
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -40,9 +41,9 @@ GKE_CLUSTER_NAME = f'{uuid.uuid4()}'
 AIPLATFORM_JOB_DIR = 'gs://citibikevd/aiplatform/output'
 TFKERAS_MODEL = f"tfkeras_model_tiego" #{str(uuid.uuid4()).replace('-', '_')}
 
-# node_config = NodeConfig(machine_type='n1-standard-16')
-# node_pool = NodePool(initial_node_count=1, config=node_config)
-# GKE_CLUSTER = Cluster(name='tiego', initial_node_count=1, node_config=node_config)
+node_config = NodeConfig(machine_type='n1-standard-16')
+node_pool = NodePool(initial_node_count=1, config=node_config)
+GKE_CLUSTER = Cluster(name='tiego2', initial_node_count=1, node_config=node_config)
 
 yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
@@ -104,12 +105,31 @@ with models.DAG(
     #    task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
     #)
 
-    # create_gke_job = GKEClusterCreateOperator(
-    #     task_id='gke_cluster_create',
-    #     project_id=PROJECT_ID,
-    #     location=ZONE,
-    #     body=GKE_CLUSTER
-    # )
+    create_gke_job = GKECreateClusterOperator(
+        task_id='gke_cluster_create',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        body=GKE_CLUSTER
+    )
+
+
+    start_gke_pod = GKEStartPodOperator(
+        task_id='gke_start_pod',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        cluster_name=GKE_CLUSTER_NAME,
+        name='feature_engineering',
+        namespace='default',
+        image='gcr.io/data-science-onramp/tiego'
+    )
+
+    delete_gke_job = GKEDeleteClusterOperator(
+        task_id='gke_cluster_delete',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        name=GKE_CLUSTER_NAME
+    )
+
 
     # train_sklearn_job = MLEngineTrainingOperator(
     #     task_id='sklearn_train_job',
@@ -164,16 +184,10 @@ with models.DAG(
 
 
 
-    # delete_gke_job = GKEClusterDeleteOperator(
-    #     task_id='gke_cluster_delete',
-    #     project_id=PROJECT_ID,
-    #     location=ZONE,
-    #     name=GKE_CLUSTER_NAME
-    # )
 
     # Declare task dependencies
     #setup_job >> clean_job
     #create_tfkeras_model >> create_tfkeras_version
     #train_tfkeras_job >> create_tfkeras_version
 
-    #create_gke_job >> delete_gke_job
+    create_gke_job >> delete_gke_job
