@@ -33,7 +33,6 @@ class CitibikeDataset(Dataset):
 
         # Read data into dataframe
         self.df = pd.read_csv(csv_path, index_col=0)
-        print(self.df.columns)
 
     def __getitem__(self, idx):
         # Get data and target from dataframe 
@@ -49,12 +48,3 @@ class CitibikeDataset(Dataset):
 
     def __len__(self):
         return len(self.df)
-
-
-d = CitibikeDataset()
-x,y = d[0]
-print('DATA')
-print(x)
-
-print('TARGET')
-print(y)

@@ -117,7 +117,7 @@ def main():
     torch.manual_seed(args.seed)
 
     # Download data
-    dataset = CitibikeDataset('dataset/citibike.csv', download=False)
+    dataset = CitibikeDataset()
 
     # Create random indices for training and testing splits
     indices = list(range(len(dataset)))
