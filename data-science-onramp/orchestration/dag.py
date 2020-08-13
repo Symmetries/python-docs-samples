@@ -28,7 +28,7 @@ from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 #import pandas as pd
 import uuid
 
-SESSION, VERSION = 27, 0
+SESSION, VERSION = 27, 9
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -36,7 +36,7 @@ BUCKET_NAME = models.Variable.get('gcs_bucket')
 REGION = models.Variable.get('gce_region')
 ZONE = models.Variable.get('gce_zone')
 DATAPROC_CLUSTER_NAME = models.Variable.get('dataproc_cluster')
-GKE_CLUSTER_NAME = f'tiego'
+GKE_CLUSTER_NAME = f'auth-tiego'
 
 # Set AI Platform variables
 AIPLATFORM_JOB_DIR = 'gs://citibikevd/aiplatform/output'
@@ -106,31 +106,31 @@ with models.DAG(
     #    task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
     #)
 
-    create_gke_job = GKECreateClusterOperator(
-        task_id='gke_cluster_create',
-        project_id=PROJECT_ID,
-        location=ZONE,
-        body=GKE_CLUSTER
-    )
+    # create_gke_job = GKECreateClusterOperator(
+    #     task_id='gke_cluster_create',
+    #     project_id=PROJECT_ID,
+    #     location=ZONE,
+    #     body=GKE_CLUSTER
+    # )
 
     
     start_gke_pod = GKEPodOperator(
         task_id='gke_start_pod',
         project_id=PROJECT_ID,
-        location=ZONE,
+        location=REGION,
         cluster_name=GKE_CLUSTER_NAME,
-        name='feature-engineering',
+        name=f'feature-engineering-{SESSION}-{VERSION}',
         namespace='default',
         image='gcr.io/data-science-onramp/tiego'
     )
     
     
-    delete_gke_job = GKEDeleteClusterOperator(
-        task_id='gke_cluster_delete',
-        project_id=PROJECT_ID,
-        location=ZONE,
-        name=GKE_CLUSTER_NAME
-    )
+    # delete_gke_job = GKEDeleteClusterOperator(
+    #     task_id='gke_cluster_delete',
+    #     project_id=PROJECT_ID,
+    #     location=ZONE,
+    #     name=GKE_CLUSTER_NAME
+    # )
     
 
 
@@ -193,4 +193,4 @@ with models.DAG(
     #create_tfkeras_model >> create_tfkeras_version
     #train_tfkeras_job >> create_tfkeras_version
 
-    create_gke_job >> start_gke_pod >> delete_gke_job
+    #create_gke_job >> start_gke_pod >> delete_gke_job
