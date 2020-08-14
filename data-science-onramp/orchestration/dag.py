@@ -14,21 +14,19 @@ import datetime
 from airflow import models
 #from airflow.operators.python_operator import PythonOperator
 #from airflow.operators.bash_operator import BashOperator
-#from airflow.operators.papermill_operator import PapermillOperator
 #from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
-#from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator, MLEngineVersionOperator
 # from airflow.providers.google.cloud.hooks.dataproc import DataprocSubmitJobOperator
 
 # GKEPodOperator should be replaced by GKEStartPodOperator when it is supported
 from airflow.contrib.operators.gcp_container_operator import GKEPodOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import GKECreateClusterOperator, GKEDeleteClusterOperator #, GKEStartPodOperator 
-from airflow.providers.google.cloud.operators.mlengine import MLEngineCreateModelOperator, MLEngineCreateVersionOperator
+from airflow.providers.google.cloud.operators.mlengine import MLEngineStartTrainingJobOperator, MLEngineCreateModelOperator, MLEngineCreateVersionOperator
 
 from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 #import pandas as pd
 import uuid
 
-SESSION, VERSION = 27, 9
+SESSION, VERSION = 29, 0
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -68,43 +66,18 @@ with models.DAG(
         default_args=default_args,
         schedule_interval=datetime.timedelta(days=1)) as dag:
 
-    # Submit the setup job with the given arguments and other configuration
-    # Note: This job is here for testing purposes, it will be removed later
-    # The setup job is run once at the start and it the starting point of the pipeline
-    # setup_job = DataProcPySparkOperator(
-    #     main=f'gs://{BUCKET_NAME}/setup.py',
-    #     cluster_name=DATAPROC_CLUSTER_NAME,
-    #     arguments=[BUCKET_NAME, '--dry-run'],
-    #     region=REGION,
-    #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
-    #     task_id=f'setup-task-v{SESSION}-{VERSION}'
-    # )
+    ### Data cleaning
 
-    # # Submit the clean job with the given arguments and other configuration
     # clean_job = DataProcPySparkOperator(
     #     main=f'gs://{BUCKET_NAME}/clean.py',
     #     cluster_name=DATAPROC_CLUSTER_NAME,
     #     arguments=[PROJECT_ID, BUCKET_NAME, '--dry-run'],
     #     region=REGION,
     #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
-    #     task_id=f'clean-task-v{SESSION}-{VERSION}'
+    #     task_id=f'data_cleaning'
     # )
 
-    # feature_eng_job = PythonOperator(
-    #         task_id='feature_engineering',
-    #         python_callable='gs://citibikevd/feature_engineering.py')
-
-    #feature_eng_job = PapermillOperator(
-    #        task_id='feature_engineering',
-    #        input_nb='gs://feature_engineering.ipynb',
-    #        output_nb='/dev/null',
-    #        parameters='feature-engineering-task-v{SESSION}-{VERSION}'
-    #)
-
-    #feature_eng_job = PythonOperator(
-    #    python_callable=run_notebook,
-    #    task_id=f'feature-engineering-task-v{SESSION}-{VERSION}'
-    #)
+    ### Feature Engineering
 
     # create_gke_job = GKECreateClusterOperator(
     #     task_id='gke_cluster_create',
@@ -112,17 +85,16 @@ with models.DAG(
     #     location=ZONE,
     #     body=GKE_CLUSTER
     # )
-
     
-    start_gke_pod = GKEPodOperator(
-        task_id='gke_start_pod',
-        project_id=PROJECT_ID,
-        location=REGION,
-        cluster_name=GKE_CLUSTER_NAME,
-        name=f'feature-engineering-{SESSION}-{VERSION}',
-        namespace='default',
-        image='gcr.io/data-science-onramp/tiego'
-    )
+    # feature_eng_job = GKEPodOperator(
+    #     task_id='feature_engineering',
+    #     project_id=PROJECT_ID,
+    #     location=REGION,
+    #     cluster_name=GKE_CLUSTER_NAME,
+    #     name=f'feature-engineering-{SESSION}-{VERSION}',
+    #     namespace='default',
+    #     image='gcr.io/data-science-onramp/tiego'
+    # )
     
     
     # delete_gke_job = GKEDeleteClusterOperator(
@@ -132,23 +104,9 @@ with models.DAG(
     #     name=GKE_CLUSTER_NAME
     # )
     
+    ### Model Training
 
-
-    # train_sklearn_job = MLEngineTrainingOperator(
-    #     task_id='sklearn_train_job',
-    #     project_id=PROJECT_ID,
-    #     job_id=f'sklearn_train_job_{uuid.uuid4()}',
-    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
-    #     training_python_module='trainer.sklearn_model.task',
-    #     training_args=[],
-    #     region=REGION,
-    #     job_dir=AIPLATFORM_JOB_DIR,
-    #     runtime_version = '2.1',
-    #     python_version='3.7'
-    # )
-
-    '''
-    train_tfkeras_job = MLEngineTrainingOperator(
+    train_tfkeras_job = MLEngineStartTrainingJobOperator(
         task_id='tfkeras_train_job',
         project_id=PROJECT_ID,
         job_id=f'tfkeras_train_job_{uuid.uuid4()}',
@@ -161,36 +119,50 @@ with models.DAG(
         python_version='3.7'
     )
 
-    create_tfkeras_model = MLEngineCreateModelOperator(
-       task_id="create-tfkeras-model",
+    train_sklearn_job = MLEngineStartTrainingJobOperator(
+        task_id='sklearn_train_job',
         project_id=PROJECT_ID,
-        model={
-            "name": TFKERAS_MODEL
-        }
+        job_id=f'sklearn_train_job_{uuid.uuid4()}',
+        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+        training_python_module='trainer.sklearn_model.task',
+        training_args=[],
+        region=REGION,
+        job_dir=AIPLATFORM_JOB_DIR,
+        runtime_version = '2.1',
+        python_version='3.7'
     )
 
-    create_tfkeras_version = MLEngineCreateVersionOperator(
-        task_id="create-tfkeras-version",
-        project_id=PROJECT_ID,
-        model_name=TFKERAS_MODEL,
-        version={
-            "name": "v1",
-            "description": "tk-keras model version 1",
-            "deployment_uri": f'{AIPLATFORM_JOB_DIR}/keras_export/',
-            "runtime_version": "2.1",
-            "framework": "TENSORFLOW",
-            "pythonVersion": "3.7"
-        }
-    )
-    '''
+    ### Model Deployment
+
+    # create_tfkeras_model = MLEngineCreateModelOperator(
+    #    task_id="create-tfkeras-model",
+    #     project_id=PROJECT_ID,
+    #     model={
+    #         "name": TFKERAS_MODEL
+    #     }
+    # )
+
+    # create_tfkeras_version = MLEngineCreateVersionOperator(
+    #     task_id="create-tfkeras-version",
+    #     project_id=PROJECT_ID,
+    #     model_name=TFKERAS_MODEL,
+    #     version={
+    #         "name": "v1",
+    #         "description": "tk-keras model version 1",
+    #         "deployment_uri": f'{AIPLATFORM_JOB_DIR}/keras_export/',
+    #         "runtime_version": "2.1",
+    #         "framework": "TENSORFLOW",
+    #         "pythonVersion": "3.7"
+    #     }
+    # )
 
 
+    # Task dependencies
+    #clean_job >> feature_eng_job
 
+    #create_gke_job >> feature_eng_job >> delete_gke_job
 
+    #feature_eng_job >> train_tfkeras_job
+    #feature_eng_job >> train_sklearn_job
 
-    # Declare task dependencies
-    #setup_job >> clean_job
-    #create_tfkeras_model >> create_tfkeras_version
-    #train_tfkeras_job >> create_tfkeras_version
-
-    #create_gke_job >> start_gke_pod >> delete_gke_job
+    #train_tfkeras_job >> create_tfkeras_model >> create_tfkeras_version
