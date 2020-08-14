@@ -4,7 +4,8 @@ A DAG that orchestrates the entire end-to-end data science pipeline.
 This DAG relies on four Airflow variables
 https://airflow.apache.org/concepts.html#variables
 * gcp_project - The Google Cloud Project that contains the pipeline components
-* gce_zone - Google Compute Engine region of the Dataproc cluster
+* gce_region - Google Compute Engine region for clusters
+* gce_zone - Google Compute Engine zone for cluster
 * dataproc_cluster - The name of the Dataproc Cluster
 * gcs_bucket - The Google Cloud Storage bucket used to store intermediate results of the pipeline
 """
@@ -12,10 +13,8 @@ https://airflow.apache.org/concepts.html#variables
 import datetime
 
 from airflow import models
-#from airflow.operators.python_operator import PythonOperator
 #from airflow.operators.bash_operator import BashOperator
 #from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
-# from airflow.providers.google.cloud.hooks.dataproc import DataprocSubmitJobOperator
 
 # GKEPodOperator should be replaced by GKEStartPodOperator when it is supported
 from airflow.contrib.operators.gcp_container_operator import GKEPodOperator
@@ -23,7 +22,6 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import GKECreate
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartTrainingJobOperator, MLEngineCreateModelOperator, MLEngineCreateVersionOperator
 
 from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
-#import pandas as pd
 import uuid
 
 SESSION, VERSION = 29, 0
@@ -69,12 +67,12 @@ with models.DAG(
     ### Data cleaning
 
     # clean_job = DataProcPySparkOperator(
+    #     task_id=f'data_cleaning'
     #     main=f'gs://{BUCKET_NAME}/clean.py',
     #     cluster_name=DATAPROC_CLUSTER_NAME,
     #     arguments=[PROJECT_ID, BUCKET_NAME, '--dry-run'],
     #     region=REGION,
     #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
-    #     task_id=f'data_cleaning'
     # )
 
     ### Feature Engineering
@@ -106,36 +104,36 @@ with models.DAG(
     
     ### Model Training
 
-    train_tfkeras_job = MLEngineStartTrainingJobOperator(
-        task_id='tfkeras_train_job',
-        project_id=PROJECT_ID,
-        job_id=f'tfkeras_train_job_{uuid.uuid4()}',
-        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
-        training_python_module='trainer.tfkeras_model.task',
-        training_args=[],
-        region=REGION,
-        job_dir=AIPLATFORM_JOB_DIR,
-        runtime_version = '2.1',
-        python_version='3.7'
-    )
+    # train_tfkeras_job = MLEngineStartTrainingJobOperator(
+    #     task_id='tfkeras_training',
+    #     project_id=PROJECT_ID,
+    #     job_id=f'tfkeras_train_job_{uuid.uuid4()}',
+    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+    #     training_python_module='trainer.tfkeras_model.task',
+    #     training_args=[],
+    #     region=REGION,
+    #     job_dir=AIPLATFORM_JOB_DIR,
+    #     runtime_version = '2.1',
+    #     python_version='3.7'
+    # )
 
-    train_sklearn_job = MLEngineStartTrainingJobOperator(
-        task_id='sklearn_train_job',
-        project_id=PROJECT_ID,
-        job_id=f'sklearn_train_job_{uuid.uuid4()}',
-        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
-        training_python_module='trainer.sklearn_model.task',
-        training_args=[],
-        region=REGION,
-        job_dir=AIPLATFORM_JOB_DIR,
-        runtime_version = '2.1',
-        python_version='3.7'
-    )
+    # train_sklearn_job = MLEngineStartTrainingJobOperator(
+    #     task_id='sklearn_training',
+    #     project_id=PROJECT_ID,
+    #     job_id=f'sklearn_train_job_{uuid.uuid4()}',
+    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+    #     training_python_module='trainer.sklearn_model.task',
+    #     training_args=[],
+    #     region=REGION,
+    #     job_dir=AIPLATFORM_JOB_DIR,
+    #     runtime_version = '2.1',
+    #     python_version='3.7'
+    # )
 
     ### Model Deployment
 
     # create_tfkeras_model = MLEngineCreateModelOperator(
-    #    task_id="create-tfkeras-model",
+    #     task_id="tfkeras_model_create",
     #     project_id=PROJECT_ID,
     #     model={
     #         "name": TFKERAS_MODEL
@@ -143,7 +141,7 @@ with models.DAG(
     # )
 
     # create_tfkeras_version = MLEngineCreateVersionOperator(
-    #     task_id="create-tfkeras-version",
+    #     task_id="tfkeras_version_create",
     #     project_id=PROJECT_ID,
     #     model_name=TFKERAS_MODEL,
     #     version={
