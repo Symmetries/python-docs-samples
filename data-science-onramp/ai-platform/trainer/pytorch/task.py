@@ -21,8 +21,8 @@ def get_args():
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=16,
-        help='input batch size for training (default: 64)')
+        default=32,
+        help='input batch size for training (default: 32)')
     parser.add_argument(
         '--test-batch-size',
         type=int,
