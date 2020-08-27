@@ -20,11 +20,11 @@ ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
 RUN echo '[GoogleCompute]\nservice_account = default' > /etc/boto.cfg
 
 # Copies feature engineering code and dependencies
-COPY resources/dummy.py /root
+COPY resources/feature_engineering.py /root
 COPY resources/requirements.txt /root
 
 # Installs feature engineering dependencies
 RUN pip install -r /root/requirements.txt
 
 # Sets entry point to run feature engineering script
-ENTRYPOINT ["python", "/root/dummy.py"]
+ENTRYPOINT ["python", "/root/feature_engineering.py"]

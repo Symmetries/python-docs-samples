@@ -24,7 +24,9 @@ from airflow.providers.google.cloud.operators.mlengine import MLEngineStartTrain
 from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 import uuid
 
-SESSION, VERSION = 29, 0
+SESSION, VERSION = 31, 3
+
+# TODO -uuid-ify
 
 # Get Airflow varibles
 PROJECT_ID = models.Variable.get('gcp_project')
@@ -32,7 +34,7 @@ BUCKET_NAME = models.Variable.get('gcs_bucket')
 REGION = models.Variable.get('gce_region')
 ZONE = models.Variable.get('gce_zone')
 DATAPROC_CLUSTER_NAME = models.Variable.get('dataproc_cluster')
-GKE_CLUSTER_NAME = f'auth-tiego'
+GKE_CLUSTER_NAME = f'auth-tiego-v{SESSION}-{VERSION}'
 
 # Set AI Platform variables
 AIPLATFORM_JOB_DIR = 'gs://citibikevd/aiplatform/output'
@@ -75,32 +77,34 @@ with models.DAG(
     #     dataproc_pyspark_jars=['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'],
     # )
 
-    ### Feature Engineering
+    # TODO: need to probably orchestrate getting that image in gcr
 
-    # create_gke_job = GKECreateClusterOperator(
-    #     task_id='gke_cluster_create',
-    #     project_id=PROJECT_ID,
-    #     location=ZONE,
-    #     body=GKE_CLUSTER
-    # )
+    ## Feature Engineering
+
+    create_gke_job = GKECreateClusterOperator(
+        task_id='gke_cluster_create',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        body=GKE_CLUSTER
+    )
     
-    # feature_eng_job = GKEPodOperator(
-    #     task_id='feature_engineering',
-    #     project_id=PROJECT_ID,
-    #     location=REGION,
-    #     cluster_name=GKE_CLUSTER_NAME,
-    #     name=f'feature-engineering-{SESSION}-{VERSION}',
-    #     namespace='default',
-    #     image='gcr.io/data-science-onramp/tiego'
-    # )
+    feature_eng_job = GKEPodOperator(
+        task_id='feature_engineering',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        cluster_name=GKE_CLUSTER_NAME,
+        name=f'feature-engineering-{SESSION}-{VERSION}',
+        namespace='default',
+        image='gcr.io/data-science-onramp/tiego'
+    )
     
     
-    # delete_gke_job = GKEDeleteClusterOperator(
-    #     task_id='gke_cluster_delete',
-    #     project_id=PROJECT_ID,
-    #     location=ZONE,
-    #     name=GKE_CLUSTER_NAME
-    # )
+    delete_gke_job = GKEDeleteClusterOperator(
+        task_id='gke_cluster_delete',
+        project_id=PROJECT_ID,
+        location=ZONE,
+        name=GKE_CLUSTER_NAME
+    )
     
     ### Model Training
 
@@ -158,7 +162,7 @@ with models.DAG(
     # Task dependencies
     #clean_job >> feature_eng_job
 
-    #create_gke_job >> feature_eng_job >> delete_gke_job
+    create_gke_job >> feature_eng_job >> delete_gke_job
 
     #feature_eng_job >> train_tfkeras_job
     #feature_eng_job >> train_sklearn_job
