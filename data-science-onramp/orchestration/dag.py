@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.operators.mlengine import MLEngineStartTrain
 from google.cloud.container_v1.types import Cluster, NodePool, NodeConfig
 import uuid
 
-SESSION, VERSION = 31, 3
+SESSION, VERSION = 34, 6
 
 # TODO -uuid-ify
 
@@ -40,7 +40,10 @@ GKE_CLUSTER_NAME = f'auth-tiego-v{SESSION}-{VERSION}'
 AIPLATFORM_JOB_DIR = 'gs://citibikevd/aiplatform/output'
 TFKERAS_MODEL = f"tfkeras_model_tiego" #{str(uuid.uuid4()).replace('-', '_')}
 
-node_config = NodeConfig(machine_type='n1-standard-16')
+# TODO make generic service account
+node_config = NodeConfig(machine_type='n1-standard-16', service_account='leah-session33@data-science-onramp.iam.gserviceaccount.com', oauth_scopes=["https://www.googleapis.com/auth/cloud-platform"])
+# node_config = NodeConfig(machine_type='n1-standard-16', oauth_scopes=["https://www.googleapis.com/auth/cloud-platform"])
+
 node_pool = NodePool(initial_node_count=1, config=node_config)
 GKE_CLUSTER = Cluster(name=GKE_CLUSTER_NAME, initial_node_count=1, node_config=node_config)
 
@@ -85,7 +88,8 @@ with models.DAG(
         task_id='gke_cluster_create',
         project_id=PROJECT_ID,
         location=ZONE,
-        body=GKE_CLUSTER
+        body=GKE_CLUSTER,
+        gcp_conn_id='google_cloud_default'
     )
     
     feature_eng_job = GKEPodOperator(
@@ -106,57 +110,57 @@ with models.DAG(
         name=GKE_CLUSTER_NAME
     )
     
-    ### Model Training
+    ## Model Training
 
-    # train_tfkeras_job = MLEngineStartTrainingJobOperator(
-    #     task_id='tfkeras_training',
-    #     project_id=PROJECT_ID,
-    #     job_id=f'tfkeras_train_job_{uuid.uuid4()}',
-    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
-    #     training_python_module='trainer.tfkeras_model.task',
-    #     training_args=[],
-    #     region=REGION,
-    #     job_dir=AIPLATFORM_JOB_DIR,
-    #     runtime_version = '2.1',
-    #     python_version='3.7'
-    # )
+    train_tfkeras_job = MLEngineStartTrainingJobOperator(
+        task_id='tfkeras_training',
+        project_id=PROJECT_ID,
+        job_id=f'tfkeras_train_job_{uuid.uuid4()}',
+        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+        training_python_module='trainer.tfkeras_model.task',
+        training_args=[],
+        region=REGION,
+        job_dir=AIPLATFORM_JOB_DIR,
+        runtime_version = '2.1',
+        python_version='3.7'
+    )
 
-    # train_sklearn_job = MLEngineStartTrainingJobOperator(
-    #     task_id='sklearn_training',
-    #     project_id=PROJECT_ID,
-    #     job_id=f'sklearn_train_job_{uuid.uuid4()}',
-    #     package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
-    #     training_python_module='trainer.sklearn_model.task',
-    #     training_args=[],
-    #     region=REGION,
-    #     job_dir=AIPLATFORM_JOB_DIR,
-    #     runtime_version = '2.1',
-    #     python_version='3.7'
-    # )
+    train_sklearn_job = MLEngineStartTrainingJobOperator(
+        task_id='sklearn_training',
+        project_id=PROJECT_ID,
+        job_id=f'sklearn_train_job_{uuid.uuid4()}',
+        package_uris='gs://citibikevd/aiplatform/trainer-0.1.tar.gz',
+        training_python_module='trainer.sklearn_model.task',
+        training_args=[],
+        region=REGION,
+        job_dir=AIPLATFORM_JOB_DIR,
+        runtime_version = '2.1',
+        python_version='3.7'
+    )
 
-    ### Model Deployment
+    ## Model Deployment
 
-    # create_tfkeras_model = MLEngineCreateModelOperator(
-    #     task_id="tfkeras_model_create",
-    #     project_id=PROJECT_ID,
-    #     model={
-    #         "name": TFKERAS_MODEL
-    #     }
-    # )
+    create_tfkeras_model = MLEngineCreateModelOperator(
+        task_id="tfkeras_model_create",
+        project_id=PROJECT_ID,
+        model={
+            "name": TFKERAS_MODEL
+        }
+    )
 
-    # create_tfkeras_version = MLEngineCreateVersionOperator(
-    #     task_id="tfkeras_version_create",
-    #     project_id=PROJECT_ID,
-    #     model_name=TFKERAS_MODEL,
-    #     version={
-    #         "name": "v1",
-    #         "description": "tk-keras model version 1",
-    #         "deployment_uri": f'{AIPLATFORM_JOB_DIR}/keras_export/',
-    #         "runtime_version": "2.1",
-    #         "framework": "TENSORFLOW",
-    #         "pythonVersion": "3.7"
-    #     }
-    # )
+    create_tfkeras_version = MLEngineCreateVersionOperator(
+        task_id="tfkeras_version_create",
+        project_id=PROJECT_ID,
+        model_name=TFKERAS_MODEL,
+        version={
+            "name": "v1",
+            "description": "tk-keras model version 1",
+            "deployment_uri": f'{AIPLATFORM_JOB_DIR}/keras_export/',
+            "runtime_version": "2.1",
+            "framework": "TENSORFLOW",
+            "pythonVersion": "3.7"
+        }
+    )
 
 
     # Task dependencies
@@ -164,7 +168,7 @@ with models.DAG(
 
     create_gke_job >> feature_eng_job >> delete_gke_job
 
-    #feature_eng_job >> train_tfkeras_job
-    #feature_eng_job >> train_sklearn_job
+    feature_eng_job >> train_tfkeras_job
+    feature_eng_job >> train_sklearn_job
 
-    #train_tfkeras_job >> create_tfkeras_model >> create_tfkeras_version
+    train_tfkeras_job >> create_tfkeras_model >> create_tfkeras_version
